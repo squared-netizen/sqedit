@@ -1,0 +1,7 @@
+-- json.peg: a JSON string and a number, for text that only embeds JSON.
+-- A JSON value in a JSON file is `sqedit json`'s, not a grammar's.
+--
+--   sqedit pick -g json "'\"version\":' %s* {string}" manifest.json
+
+string <- '"' ( [^"\] / '\' . )* '"'
+number <- '-'? ( '0' / [1-9] %d* ) ( '.' %d+ )? ( [eE] [+-]? %d+ )?

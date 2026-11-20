@@ -1,0 +1,8 @@
+-- c.peg: pieces of C and C++ source.
+--
+--   sqedit match -g c 'include' src/*.cpp
+
+string  <- '"' ( [^"\%nl] / '\' . )* '"'
+char    <- "'" ( [^'\%nl] / '\' . )* "'"
+comment <- '//' [^%nl]* / '/*' ( !'*/' . )* '*/'
+include <- '#' [ 	]* 'include' [ 	]* ( '<' [^>%nl]* '>' / string )

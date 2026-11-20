@@ -1,0 +1,37 @@
+# Builds sqedit with clang and libc++ 23 (the SDK's toolchain, from
+# apt.llvm.org) and runs make test: the engine's tests, then every command
+# end to end, compared with sed and grep (installed here) where it replaces
+# them; then the same checks with neither on PATH, as on a phone without them.
+name: test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: clang and libc++ 23
+        run: |
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm-23.list
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends clang-23 lld-23 llvm-23 libc++-23-dev libc++abi-23-dev
+          echo "/usr/lib/llvm-23/bin" >> "$GITHUB_PATH"
+      - name: make test
+        run: |
+          clang++ --version | head -n 1
+          make -j4 test CXX=clang++ CC=clang AR=llvm-ar
+      - name: the commands with no sed, grep or awk on PATH
+        run: |
+          bin=$RUNNER_TEMP/nosed
+          mkdir -p "$bin"
+          for t in sh cat cp head tail mkdir rm printf; do ln -s "$(command -v "$t")" "$bin/$t"; done
+          env PATH="$bin" "$bin/sh" tests/run_check.sh build/sqedit

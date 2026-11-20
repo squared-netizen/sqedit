@@ -1,0 +1,8 @@
+-- ini.peg: a `key: value` line (or `key=value`), with a named capture
+-- for each side.
+--
+--   sqedit pick -g ini '&pair {:key: key :}' PINNED
+
+key   <- [^:=%s]+ ( [ 	]+ [^:=%s]+ )*
+value <- [^%nl]*
+pair  <- [ 	]* {:key: key :} [ 	]* [:=] [ 	]* {:value: value :}
