@@ -22,12 +22,14 @@ CXXFLAGS := -std=c++23 $(STDLIB) $(OPT) $(WARN) -isystem third_party/yyjson-0.12
 CFLAGS   := $(OPT) -w
 LDFLAGS  := $(STDLIB)
 
-# libc++'s std module: its manifest names it relative to itself, which on
-# every libc++ this builds with is ../share/libc++/v1/std.cppm. Found with
-# make's own functions; set STD_CPPM when it is somewhere else.
+# libc++'s std module, as its manifest names it ("source-path", relative to
+# the manifest), read with make's own functions: no sed. Set STD_CPPM when
+# it is somewhere else.
+comma        := ,
 STD_MANIFEST := $(shell readlink -f "$$($(CXX) $(STDLIB) -print-library-module-manifest-path 2>/dev/null)" 2>/dev/null)
-STD_CPPM     ?= $(firstword $(wildcard $(dir $(STD_MANIFEST))../share/libc++/v1/std.cppm \
-                                       $(dir $(STD_MANIFEST))../../share/libc++/v1/std.cppm))
+STD_WORDS    := $(if $(wildcard $(STD_MANIFEST)),$(subst ", ,$(subst $(comma), ,$(file < $(STD_MANIFEST)))))
+STD_SOURCE   := $(firstword $(filter %/std.cppm std.cppm,$(STD_WORDS)))
+STD_CPPM     ?= $(if $(filter /%,$(STD_SOURCE)),$(STD_SOURCE),$(if $(STD_SOURCE),$(dir $(STD_MANIFEST))$(STD_SOURCE)))
 
 # squared's data module (sq.data, vendored: tools/vendor_squared_data.sh),
 # its units in the order they import each other (file:module name), then
