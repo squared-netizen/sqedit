@@ -152,6 +152,28 @@ same "pick with a shipped grammar" '"1.2.3"' "$("$SQEDIT" pick -g json "'\"versi
 printf 'name = sqedit\nversion: 0.1.0\n' > config.ini
 same "pick with ini.peg's named captures" "$(printf 'name\tsqedit')" "$("$SQEDIT" pick -g ini 'pair' config.ini | head -n 1)"
 
+# --- -x, and newlines in a replacement (squared's manifest edits) ---------------------
+cat > AndroidManifest.xml <<'EOF'
+<manifest>
+    <application
+        android:hasCode="false">
+    </application>
+</manifest>
+EOF
+got=$("$SQEDIT" sub -x '{[ 	]*} "<application" {[ 	]*}' '{1}<uses-permission android:name="android.permission.INTERNET" />\n{1}<application{2}' AndroidManifest.xml)
+want=$(printf '<manifest>\n    <uses-permission android:name="android.permission.INTERNET" />\n    <application\n        android:hasCode="false">\n    </application>\n</manifest>')
+same "sub -x with \\n: a line put before another" "$want" "$got"
+have sed && same "sub -x \\n = sed's \\n insert" \
+    "$(sed 's|^\([[:space:]]*\)<application\([[:space:]]*\)$|\1<uses-permission android:name="android.permission.INTERNET" />\n\1<application\2|' AndroidManifest.xml)" "$got"
+status "sub -x: not the whole line, no change" 1 "$SQEDIT" sub -x '"application"' 'x' AndroidManifest.xml
+same "sub \\t and \\\\" "$(printf 'a\tb\\c')" "$(printf 'a b c\n' | "$SQEDIT" sub '" b "' '\tb\\')"
+same "pick -x: the value of a key=value line" "s3cr3t" "$(printf 'port=1\nsecret=s3cr3t\n' | "$SQEDIT" pick -x '"secret=" {.*}')"
+have sed && same "pick -x = sed -n s/^secret=//p" "$(printf 'port=1\nsecret=s3cr3t\n' | sed -n 's/^secret=//p')" \
+    "$(printf 'port=1\nsecret=s3cr3t\n' | "$SQEDIT" pick -x '"secret=" {.*}')"
+same "pick -x: not inside a line" "" "$(printf 'xsecret=1\n' | "$SQEDIT" pick -x '"secret=" {.*}')"
+same "pick -x: the last field" "192.168.1.5:37000" \
+    "$(printf 'name _adb-tls-connect._tcp 192.168.1.5:37000\n' | "$SQEDIT" pick -x '(%S* %s+)* {%S+} %s*')"
+
 # --- errors ------------------------------------------------------------------------
 err=$("$SQEDIT" match '"unclosed' classes.cpp 2>&1); st=$?
 same "a pattern error: status 2" 2 "$st"

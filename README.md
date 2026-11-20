@@ -44,8 +44,10 @@ literal is quoted text and means only itself; everything unquoted is pattern.
 
 A match is anchored where it starts, as in every PEG; the commands search
 for the first place a pattern matches, line by line or, with `--whole`,
-across the file. In `sub`'s replacement, `{name}` is a named capture, `{1}`
-the first capture, `{0}` the whole match.
+across the file; with `-x` (`match`, `pick`, `sub`) the pattern must match
+the whole line, as with grep -x. In `sub`'s replacement, `{name}` is a named
+capture, `{1}` the first capture, `{0}` the whole match, and `\n`, `\t` and
+`\\` a newline, a tab and a backslash: one line can become two.
 
 `-g file.peg` makes a file's rules usable by name in a pattern. sqedit ships
 `json` (a string and a number), `c` (a string literal, a comment, an
