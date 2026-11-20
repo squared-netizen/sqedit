@@ -31,7 +31,7 @@ constexpr std::string_view usage_text = R"(usage: sqedit COMMAND ARGUMENTS [FILE
 
   match PATTERN [FILE...]              print the lines that match
       -o  only the matches   -c  count them   -q  print nothing
-      -v  lines that do not  -x  the whole line must match   -n  line numbers
+      -v  lines that do not  -n  line numbers
   pick PATTERN [FILE...]               print the captures of every match, one
                                        match a line, tab-separated (the match
                                        itself when the pattern captures nothing)
@@ -41,13 +41,16 @@ constexpr std::string_view usage_text = R"(usage: sqedit COMMAND ARGUMENTS [FILE
   sub PATTERN REPLACEMENT [FILE...]    replace every match; in REPLACEMENT,
                                        {name} is a named capture, {1}.. the
                                        captures in order, {0} the match, {{ }}
-                                       braces
+                                       braces, \n a newline, \t a tab, \\ a
+                                       backslash
   wrap PATTERN BEFORE AFTER [FILE...]  put BEFORE above each matching line and
                                        AFTER below it (or below --lines N lines)
   json PATH [FILE]                     the value at a dotted path
                                        (consumers.sqterm.key, items.0): a string
                                        as itself, anything else as JSON
 
+  -x           match, pick, sub: the pattern must match the whole line
+               (or, with --whole, the whole file), as grep -x
   -F           the pattern is literal text
   -g GRAMMAR   rules a pattern may call: a .peg file, or one sqedit ships
                (c, ini, json)
@@ -191,6 +194,15 @@ std::vector<Match> all_matches(const Pattern& p, std::string_view s) {
     return out;
 }
 
+/// The matches a command acts on: every one, or with -x the one that is the
+/// whole subject (the pattern compiled to reach its end).
+std::vector<Match> matches(const Options& o, const Pattern& p, std::string_view s) {
+    if (!o.full_line) return all_matches(p, s);
+    std::vector<Match> out;
+    if (auto m = match_at(p, s, 0)) out.push_back(std::move(*m));
+    return out;
+}
+
 /// A file split into lines, without their newlines; whether the last had one.
 struct Lines {
     std::vector<std::string_view> lines;
@@ -261,6 +273,11 @@ std::string replaced(std::string_view text, std::string_view subject, const Matc
         const char c = text[i];
         if ((c == '{' || c == '}') && i + 1 < text.size() && text[i + 1] == c) {
             r += c;
+            ++i;
+            continue;
+        }
+        if (c == '\\' && i + 1 < text.size() && (text[i + 1] == 'n' || text[i + 1] == 't' || text[i + 1] == '\\')) {
+            r += text[i + 1] == 'n' ? '\n' : text[i + 1] == 't' ? '\t' : '\\';
             ++i;
             continue;
         }
@@ -393,7 +410,7 @@ int cmd_match(const Options& o) {
 
 int cmd_pick(const Options& o) {
     if (o.args.empty()) fail("pick needs a PATTERN");
-    const Pattern p = compile(o, o.args[0]);
+    const Pattern p = compile(o, o.args[0], o.full_line);
     const auto in = inputs(o, std::span(o.args).subspan(1));
     std::size_t total = 0;
     const auto print = [&](std::string_view s, const Match& m) {
@@ -410,10 +427,10 @@ int cmd_pick(const Options& o) {
     };
     for (const Input& f : in) {
         if (o.whole) {
-            for (const Match& m : all_matches(p, f.text)) print(f.text, m);
+            for (const Match& m : matches(o, p, f.text)) print(f.text, m);
         } else {
             for (const std::string_view line : split(f.text).lines) {
-                for (const Match& m : all_matches(p, line)) print(line, m);
+                for (const Match& m : matches(o, p, line)) print(line, m);
             }
         }
     }
@@ -499,7 +516,7 @@ int cmd_lines(const Options& o) {
 
 int cmd_sub(const Options& o) {
     if (o.args.size() < 2) fail("sub needs a PATTERN and a REPLACEMENT");
-    const Pattern p = compile(o, o.args[0]);
+    const Pattern p = compile(o, o.args[0], o.full_line);
     const std::string_view replacement = o.args[1];
     const auto in = inputs(o, std::span(o.args).subspan(2));
     std::vector<std::string> changed;
@@ -507,7 +524,7 @@ int cmd_sub(const Options& o) {
     const auto substitute = [&](std::string_view s, std::size_t& count) {
         std::string r;
         std::size_t at = 0;
-        for (const Match& m : all_matches(p, s)) {
+        for (const Match& m : matches(o, p, s)) {
             r += s.substr(at, m.begin - at);
             r += replaced(replacement, s, m);
             at = m.end;
