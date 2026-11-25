@@ -1,5 +1,6 @@
 # Builds sqedit with clang and libc++ 23 (the SDK's toolchain, from
-# apt.llvm.org) and runs make test: the engine's tests, then every command
+# apt.llvm.org) and sqmake (bootstrapped from its source: no make), and runs
+# sqmake test: the engine's tests, then every command
 # end to end, compared with sed and grep (installed here) where it replaces
 # them; then the same checks with neither on PATH, as on a phone without them.
 name: test
@@ -25,10 +26,23 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends clang-23 lld-23 llvm-23 libc++-23-dev libc++abi-23-dev
           echo "/usr/lib/llvm-23/bin" >> "$GITHUB_PATH"
-      - name: make test
+      - name: sqmake, from its source (tools/bootstrap.sh)
+        env:
+          CXX: clang++
+          CC: clang
+          AR: llvm-ar
+        run: |
+          git clone --depth 1 https://github.com/squared-netizen/sqmake "$RUNNER_TEMP/sqmake"
+          (cd "$RUNNER_TEMP/sqmake" && sh tools/bootstrap.sh)
+          echo "$RUNNER_TEMP/sqmake/build" >> "$GITHUB_PATH"
+      - name: sqmake test
+        env:
+          CXX: clang++
+          CC: clang
+          AR: llvm-ar
         run: |
           clang++ --version | head -n 1
-          make -j4 test CXX=clang++ CC=clang AR=llvm-ar
+          sqmake test
       - name: the commands with no sed, grep or awk on PATH
         run: |
           bin=$RUNNER_TEMP/nosed
