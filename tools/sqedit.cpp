@@ -25,7 +25,7 @@ namespace {
 using sqedit::peg::Match;
 using sqedit::peg::Pattern;
 
-constexpr std::string_view version = "0.1.0";
+constexpr std::string_view version = "0.2.0";
 
 constexpr std::string_view usage_text = R"(usage: sqedit COMMAND ARGUMENTS [FILE...]
 
