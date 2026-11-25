@@ -55,7 +55,7 @@ include) and `ini` (a `key: value` line): `-g json`. JSON in a JSON file is
 ## Build
 
 ```sh
-make -j4 test CXX=/path/to/clang++
+CXX=/path/to/clang++ sqmake test
 ```
 
 clang and libc++ 19 or later (23 is what sqterm and CI use), C++23 with

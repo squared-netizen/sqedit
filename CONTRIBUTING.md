@@ -13,10 +13,10 @@ maintained by one person, so a short note first saves everyone time.
 ## Before a pull request
 
 ```sh
-make -j4 test CXX=/path/to/clang++   # clang and libc++ 19+ (23 in CI)
+CXX=/path/to/clang++ sqmake test   # clang and libc++ 19+ (23 in CI); sqmake builds it (build.lua)
 ```
 
-`make test` runs the engine's tests (`tests/test_peg.cpp`) and the
+`sqmake test` runs the engine's tests (`tests/test_peg.cpp`) and the
 commands end to end (`tests/run_check.sh`), each compared with the sed or
 grep call it replaces where those are installed. A change to the pattern
 language comes with a test in `test_peg.cpp`; a change to a command, a
